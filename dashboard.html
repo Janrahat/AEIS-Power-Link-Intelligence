@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · AEIS{% endblock %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">CONTROL CENTER</p><h1>Link intelligence dashboard</h1><p class="muted">Create transparent, consent-based links and review submitted technical metadata.</p></div>
+  <a class="button secondary" href="{{ url_for('export_csv') }}">Export CSV</a>
+</section>
+<section class="stats">
+  <div class="stat"><span>Recorded submissions</span><strong>{{ totals.events or 0 }}</strong></div>
+  <div class="stat"><span>Consent submissions</span><strong>{{ totals.consents or 0 }}</strong></div>
+  <div class="stat"><span>Links represented</span><strong>{{ totals.links_seen or 0 }}</strong></div>
+</section>
+<section class="panel">
+  <h2>Create a link</h2>
+  <form class="create-form" method="post" action="{{ url_for('create_link') }}">
+    <div class="grow"><label for="label">Link label / purpose</label><input id="label" name="label" maxlength="100" placeholder="e.g. Authorized device test" required></div>
+    <button class="button primary" type="submit">Generate link</button>
+  </form>
+  {% if not public_base_url %}
+  <p class="notice">Local mode: generated links use this site's current address. For sharing outside your device, deploy behind HTTPS and set <code>AEIS_PUBLIC_BASE_URL</code> to your public HTTPS address.</p>
+  {% endif %}
+</section>
+<section class="panel">
+  <div class="section-heading"><h2>Generated links</h2><span class="pill">{{ links|length }} total</span></div>
+  {% if links %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Label</th><th>Created (UTC)</th><th>Submissions</th><th>Consent</th><th>Share link</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for link in links %}
+      {% set share_url = (public_base_url if public_base_url else request.url_root.rstrip('/')) ~ url_for('visit', token=link.token) %}
+      <tr>
+        <td><strong>{{ link.label }}</strong></td><td>{{ link.created_at }}</td>
+        <td>{{ link.event_count }}</td><td>{{ link.consent_count }}</td>
+        <td><input class="share-field" readonly value="{{ share_url }}" aria-label="Share link"><button type="button" class="button small" onclick="navigator.clipboard.writeText({{ share_url|tojson }}).then(()=>this.textContent='Copied')">Copy</button></td>
+        <td><form method="post" action="{{ url_for('delete_link', link_id=link.id) }}" onsubmit="return confirm('Delete this link and all associated records?')"><button class="button danger small" type="submit">Delete</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">No links yet. Create one above.</p>{% endif %}
+</section>
+<section class="panel">
+  <div class="section-heading"><h2>Recent consent submissions</h2><span class="pill">Latest 100</span></div>
+  {% if events %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Time (UTC)</th><th>Link</th><th>IP address</th><th>Browser / user agent</th><th>Platform</th><th>Locale / timezone</th><th>Screen</th><th>Location</th></tr></thead>
+    <tbody>{% for e in events %}
+      <tr><td>{{ e.event_at }}</td><td>{{ e.label or 'Deleted link' }}</td><td>{{ e.ip_address or '—' }}</td>
+      <td class="ua">{{ e.user_agent or '—' }}</td><td>{{ e.platform or '—' }}</td>
+      <td>{{ e.language or '—' }}<br><small>{{ e.timezone_name or '' }}</small></td><td>{{ e.screen_size or '—' }}</td>
+      <td>{% if e.geo_lat is not none and e.geo_lon is not none %}{{ '%.5f'|format(e.geo_lat) }}, {{ '%.5f'|format(e.geo_lon) }}<br><small>±{{ e.geo_accuracy or '?' }} m</small>{% else %}Not shared{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No one has submitted information yet.</p>{% endif %}
+  <p class="notice">IP addresses and browser metadata can be personal data. Share links only for a legitimate purpose, explain what is collected, limit access, and delete records when no longer needed.</p>
+</section>
+{% endblock %}

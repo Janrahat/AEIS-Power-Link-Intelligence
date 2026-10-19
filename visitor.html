@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Information & Consent · AEIS{% endblock %}
+{% block content %}
+<section class="panel narrow visitor">
+  {% if submitted %}
+    <div class="success-mark">✓</div><h1>Submission received</h1>
+    <p>Thank you. The technical details you chose to share have been submitted to the AEIS dashboard.</p>
+    <p class="muted">No access was made to your photos, contacts, messages, passwords, or files.</p>
+  {% else %}
+    <p class="eyebrow">TRANSPARENT DEVICE CHECK</p>
+    <h1>Information & consent</h1>
+    <p><strong>Purpose:</strong> {{ link.label }}</p>
+    <p>This page can submit limited browser/device metadata to the link owner only if you choose “I agree”. This may include your IP address, browser user-agent, platform, language, time zone, and screen dimensions.</p>
+    <p>Your location is <strong>not</strong> collected unless you separately choose the location option below and approve the browser's location permission prompt.</p>
+    <div class="notice">This page cannot retrieve your phone's photos, contacts, SMS/WhatsApp messages, passwords, or private files. Do not continue if you do not agree with the stated collection.</div>
+    <form method="post" id="consentForm">
+      <input type="hidden" name="platform" id="platform">
+      <input type="hidden" name="language" id="language">
+      <input type="hidden" name="timezone" id="timezone">
+      <input type="hidden" name="screen_size" id="screen_size">
+      <input type="hidden" name="geo_lat" id="geo_lat">
+      <input type="hidden" name="geo_lon" id="geo_lon">
+      <input type="hidden" name="geo_accuracy" id="geo_accuracy">
+      <input type="hidden" name="geo_consent" id="geo_consent" value="no">
+      <label class="check"><input type="checkbox" id="geo_checkbox"> I separately agree to share my device's location (optional)</label>
+      <label class="check"><input type="checkbox" name="consent" value="yes" required> I have read the notice and agree to submit the listed technical metadata.</label>
+      <button class="button primary full" type="submit">I agree and submit</button>
+      <a class="button ghost full" href="about:blank">Decline / leave page</a>
+    </form>
+  {% endif %}
+</section>
+<script>
+(function () {
+  const form = document.getElementById('consentForm');
+  if (!form) return;
+  document.getElementById('platform').value = navigator.userAgentData?.platform || navigator.platform || 'Not provided';
+  document.getElementById('language').value = navigator.language || '';
+  try { document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) {}
+  document.getElementById('screen_size').value = (screen.width || '?') + 'x' + (screen.height || '?');
+  form.addEventListener('submit', function (event) {
+    const geoBox = document.getElementById('geo_checkbox');
+    if (geoBox.checked && !document.getElementById('geo_lat').value) {
+      event.preventDefault();
+      if (!navigator.geolocation) {
+        alert('Location is not supported by this browser. You can uncheck the optional location box and submit.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(function (position) {
+        document.getElementById('geo_lat').value = position.coords.latitude;
+        document.getElementById('geo_lon').value = position.coords.longitude;
+        document.getElementById('geo_accuracy').value = position.coords.accuracy;
+        document.getElementById('geo_consent').value = 'yes';
+        form.requestSubmit();
+      }, function () {
+        alert('Location was not shared. Uncheck the optional location box to submit without location.');
+      }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000});
+    } else if (!geoBox.checked) {
+      document.getElementById('geo_consent').value = 'no';
+    }
+  });
+})();
+</script>
+{% endblock %}
